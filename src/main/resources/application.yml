@@ -1,9 +1,9 @@
 # 公共配置文件
-# @author <a href="https://github.com/liyupi">程序员鱼皮</a>
-# @from <a href="https://yupi.icu">编程导航知识星球</a>
+# @author <a href="https://github.com/lixuanxuan">程序员鱼皮</a>
+# @from <a href="https://xuanxuan.icu">编程导航知识星球</a>
 spring:
   application:
-    name: springboot-init
+    name: aqua-mianshiya-backend
   # 默认 dev 环境
   profiles:
     active: dev
@@ -21,7 +21,7 @@ spring:
   # todo 需替换配置
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/my_db
+    url: jdbc:mysql://localhost:3306/mianshiya
     username: root
     password: 123456
   # Redis 配置
@@ -100,4 +100,4 @@ knife4j:
       default:
         api-rule: package
         api-rule-resources:
-          - com.yupi.springbootinit.controller
+          - com.xuanxuan.mianshiya.controller

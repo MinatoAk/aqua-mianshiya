@@ -194,7 +194,7 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
 
     /**
-     * 分页获取题目列表（仅管理员可用）
+     * 分页获取题目列表
      *
      * @param questionQueryRequest
      * @return

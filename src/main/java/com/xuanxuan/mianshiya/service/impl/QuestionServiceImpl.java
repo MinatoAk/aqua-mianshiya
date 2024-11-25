@@ -2,17 +2,24 @@ package com.xuanxuan.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.xuanxuan.mianshiya.annotation.AuthCheck;
+import com.xuanxuan.mianshiya.common.BaseResponse;
 import com.xuanxuan.mianshiya.common.ErrorCode;
+import com.xuanxuan.mianshiya.common.ResultUtils;
 import com.xuanxuan.mianshiya.constant.CommonConstant;
+import com.xuanxuan.mianshiya.constant.UserConstant;
 import com.xuanxuan.mianshiya.exception.ThrowUtils;
 import com.xuanxuan.mianshiya.mapper.QuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.xuanxuan.mianshiya.model.entity.Question;
+import com.xuanxuan.mianshiya.model.entity.QuestionBankQuestion;
 import com.xuanxuan.mianshiya.model.entity.User;
 import com.xuanxuan.mianshiya.model.vo.QuestionVO;
 import com.xuanxuan.mianshiya.model.vo.UserVO;
+import com.xuanxuan.mianshiya.service.QuestionBankQuestionService;
 import com.xuanxuan.mianshiya.service.QuestionService;
 import com.xuanxuan.mianshiya.service.UserService;
 import com.xuanxuan.mianshiya.utils.SqlUtils;
@@ -20,6 +27,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -41,6 +50,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private QuestionBankQuestionService questionBankQuestionService;
 
     /**
      * 校验数据
@@ -178,6 +190,43 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
         questionVOPage.setRecords(questionVOList);
         return questionVOPage;
+    }
+
+
+    /**
+     * 分页获取题目列表（仅管理员可用）
+     *
+     * @param questionQueryRequest
+     * @return
+     */
+    public Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest) {
+        long current = questionQueryRequest.getCurrent();
+        long size = questionQueryRequest.getPageSize();
+
+        // 1) 题目表的查询条件
+        QueryWrapper<Question> queryWrapper = this.getQueryWrapper(questionQueryRequest);
+
+        // 2) 根据题库 id 查询该题库下的所有题目，先根据关联表查所有题目 ids，再搭到 queryWrapper
+        Long questionBankId = questionQueryRequest.getQuestionBankId();
+        if (questionBankId != null) {
+            List<QuestionBankQuestion> questions = questionBankQuestionService.list(
+                    Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                            .select(QuestionBankQuestion::getQuestionId)
+                            .eq(QuestionBankQuestion::getQuestionBankId, questionBankId)
+            );
+
+            if (CollUtil.isNotEmpty(questions)) {
+                Set<Long> questionIds = questions.stream()
+                        .map(QuestionBankQuestion::getQuestionId)
+                        .collect(Collectors.toSet());
+                queryWrapper.in("id", questionIds);
+            }
+        }
+
+        // 3) 查询数据库
+        Page<Question> questionPage = this.page(new Page<>(current, size), queryWrapper);
+
+        return questionPage;
     }
 
 }

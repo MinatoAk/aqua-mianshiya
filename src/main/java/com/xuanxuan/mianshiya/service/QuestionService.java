@@ -3,6 +3,7 @@ package com.xuanxuan.mianshiya.service;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.IService;
+import com.xuanxuan.mianshiya.common.BaseResponse;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.xuanxuan.mianshiya.model.entity.Question;
 import com.xuanxuan.mianshiya.model.vo.QuestionVO;
@@ -50,4 +51,12 @@ public interface QuestionService extends IService<Question> {
      * @return
      */
     Page<QuestionVO> getQuestionVOPage(Page<Question> questionPage, HttpServletRequest request);
+
+    /**
+     * 分页获取题目列表
+     *
+     * @param questionQueryRequest
+     * @return
+     */
+    Page<Question> listQuestionByPage(QuestionQueryRequest questionQueryRequest);
 }

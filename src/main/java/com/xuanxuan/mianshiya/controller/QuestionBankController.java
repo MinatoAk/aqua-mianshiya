@@ -1,5 +1,6 @@
 package com.xuanxuan.mianshiya.controller;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.xuanxuan.mianshiya.annotation.AuthCheck;
 import com.xuanxuan.mianshiya.common.BaseResponse;
@@ -13,10 +14,14 @@ import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankAddRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankEditRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankQueryRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankUpdateRequest;
+import com.xuanxuan.mianshiya.model.entity.Question;
 import com.xuanxuan.mianshiya.model.entity.QuestionBank;
+import com.xuanxuan.mianshiya.model.entity.QuestionBankQuestion;
 import com.xuanxuan.mianshiya.model.entity.User;
 import com.xuanxuan.mianshiya.model.vo.QuestionBankVO;
+import com.xuanxuan.mianshiya.service.QuestionBankQuestionService;
 import com.xuanxuan.mianshiya.service.QuestionBankService;
+import com.xuanxuan.mianshiya.service.QuestionService;
 import com.xuanxuan.mianshiya.service.UserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -24,6 +29,8 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * 题库接口
@@ -52,6 +59,7 @@ public class QuestionBankController {
      * @return
      */
     @PostMapping("/add")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Long> addQuestionBank(@RequestBody QuestionBankAddRequest questionBankAddRequest, HttpServletRequest request) {
         ThrowUtils.throwIf(questionBankAddRequest == null, ErrorCode.PARAMS_ERROR);
         // todo 在此处将实体类和 DTO 进行转换
@@ -78,6 +86,7 @@ public class QuestionBankController {
      * @return
      */
     @PostMapping("/delete")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> deleteQuestionBank(@RequestBody DeleteRequest deleteRequest, HttpServletRequest request) {
         if (deleteRequest == null || deleteRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);
@@ -211,6 +220,7 @@ public class QuestionBankController {
      * @return
      */
     @PostMapping("/edit")
+    @AuthCheck(mustRole = UserConstant.ADMIN_ROLE)
     public BaseResponse<Boolean> editQuestionBank(@RequestBody QuestionBankEditRequest questionBankEditRequest, HttpServletRequest request) {
         if (questionBankEditRequest == null || questionBankEditRequest.getId() <= 0) {
             throw new BusinessException(ErrorCode.PARAMS_ERROR);

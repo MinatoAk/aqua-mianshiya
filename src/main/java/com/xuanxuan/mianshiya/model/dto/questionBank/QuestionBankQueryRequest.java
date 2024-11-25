@@ -48,6 +48,12 @@ public class QuestionBankQueryRequest extends PageRequest implements Serializabl
     private String picture;
 
     /**
+     * 是否关联查询题库对应的题目
+     */
+    private boolean needQueryQuestionList;
+
+
+    /**
      * 创建用户 id
      */
     private Long userId;

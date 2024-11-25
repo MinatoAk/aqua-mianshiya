@@ -10,6 +10,7 @@ import com.xuanxuan.mianshiya.common.ResultUtils;
 import com.xuanxuan.mianshiya.constant.UserConstant;
 import com.xuanxuan.mianshiya.exception.BusinessException;
 import com.xuanxuan.mianshiya.exception.ThrowUtils;
+import com.xuanxuan.mianshiya.model.dto.question.QuestionQueryRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankAddRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankEditRequest;
 import com.xuanxuan.mianshiya.model.dto.questionBank.QuestionBankQueryRequest;
@@ -45,6 +46,9 @@ public class QuestionBankController {
 
     @Resource
     private QuestionBankService questionBankService;
+
+    @Resource
+    private QuestionService questionService;
 
     @Resource
     private UserService userService;
@@ -136,17 +140,32 @@ public class QuestionBankController {
     /**
      * 根据 id 获取题库（封装类）
      *
-     * @param id
+     * @param questionBankQueryRequest
      * @return
      */
     @GetMapping("/get/vo")
-    public BaseResponse<QuestionBankVO> getQuestionBankVOById(long id, HttpServletRequest request) {
+    public BaseResponse<QuestionBankVO> getQuestionBankVOById(QuestionBankQueryRequest questionBankQueryRequest, HttpServletRequest request) {
+        ThrowUtils.throwIf(questionBankQueryRequest == null, ErrorCode.PARAMS_ERROR);
+        Long id = questionBankQueryRequest.getId();
+        boolean needQueryQuestionList = questionBankQueryRequest.isNeedQueryQuestionList();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
+
         // 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
         ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
+
+        QuestionBankVO questionBankVO = questionBankService.getQuestionBankVO(questionBank, request);
+
+        // 如果需要查询题库列表
+        if (needQueryQuestionList) {
+            QuestionQueryRequest questionQueryRequest = new QuestionQueryRequest();
+            questionQueryRequest.setQuestionBankId(id);
+            Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
+            questionBankVO.setQuestionPage(questionPage);
+        }
+
         // 获取封装类
-        return ResultUtils.success(questionBankService.getQuestionBankVO(questionBank, request));
+        return ResultUtils.success(questionBankVO);
     }
 
     /**

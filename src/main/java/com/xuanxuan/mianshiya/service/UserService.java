@@ -8,6 +8,8 @@ import com.xuanxuan.mianshiya.model.vo.LoginUserVO;
 import com.xuanxuan.mianshiya.model.vo.UserVO;
 import java.util.List;
 import javax.servlet.http.HttpServletRequest;
+
+import io.swagger.models.auth.In;
 import me.chanjar.weixin.common.bean.WxOAuth2UserInfo;
 
 /**
@@ -118,4 +120,7 @@ public interface UserService extends IService<User> {
      */
     QueryWrapper<User> getQueryWrapper(UserQueryRequest userQueryRequest);
 
+    boolean addUserSignIn(long userId);
+
+    List<Integer> getUserSignIn(long userId, Integer year);
 }

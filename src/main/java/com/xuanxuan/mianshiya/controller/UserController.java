@@ -317,4 +317,18 @@ public class UserController {
         ThrowUtils.throwIf(!result, ErrorCode.OPERATION_ERROR);
         return ResultUtils.success(true);
     }
+
+    @PostMapping("/add/sign_in")
+    public BaseResponse<Boolean> addSignIn(HttpServletRequest request){
+        User loginUser = userService.getLoginUser(request);
+        boolean result = userService.addUserSignIn(loginUser.getId());
+        return ResultUtils.success(result);
+    }
+
+    @GetMapping("/get/sign_in")
+    public BaseResponse<List<Integer>> getSignIn(Integer year, HttpServletRequest request){
+        User loginUser = userService.getLoginUser(request);
+        List<Integer> result = userService.getUserSignIn(loginUser.getId(), year);
+        return ResultUtils.success(result);
+    }
 }

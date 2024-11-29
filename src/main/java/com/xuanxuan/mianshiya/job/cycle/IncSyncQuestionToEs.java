@@ -1,6 +1,8 @@
 package com.xuanxuan.mianshiya.job.cycle;
 
 import cn.hutool.core.collection.CollUtil;
+import com.xuanxuan.mianshiya.annotation.DistributedLock;
+import com.xuanxuan.mianshiya.constant.RedisConstant;
 import com.xuanxuan.mianshiya.esdao.QuestionEsDao;
 import com.xuanxuan.mianshiya.mapper.QuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionEsDTO;
@@ -35,6 +37,7 @@ public class IncSyncQuestionToEs {
      * 每分钟执行一次
      */
     @Scheduled(fixedRate = 60 * 1000)
+    @DistributedLock(key = RedisConstant.INC_SYNC_QUESTION_TO_ES)
     public void run() {
         // 1) 查询近 5 分钟内的数据
         Date fiveMinutesAgoDate = new Date(new Date().getTime() - 5 * 60 * 1000L);

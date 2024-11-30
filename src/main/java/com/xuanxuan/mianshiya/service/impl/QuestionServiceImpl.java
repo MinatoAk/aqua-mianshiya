@@ -1,6 +1,7 @@
 package com.xuanxuan.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -11,6 +12,7 @@ import com.xuanxuan.mianshiya.common.ErrorCode;
 import com.xuanxuan.mianshiya.common.ResultUtils;
 import com.xuanxuan.mianshiya.constant.CommonConstant;
 import com.xuanxuan.mianshiya.constant.UserConstant;
+import com.xuanxuan.mianshiya.exception.BusinessException;
 import com.xuanxuan.mianshiya.exception.ThrowUtils;
 import com.xuanxuan.mianshiya.mapper.QuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionEsDTO;
@@ -39,6 +41,7 @@ import org.springframework.data.elasticsearch.core.SearchHits;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQuery;
 import org.springframework.data.elasticsearch.core.query.NativeSearchQueryBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 
@@ -327,5 +330,28 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
         return page;
     }
 
+    /**
+     * 批量删除题目
+     *
+     * @param questionIds
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchDeleteQuestions(List<Long> questionIds) {
+        // 1) 参数校验
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIds), ErrorCode.PARAMS_ERROR, "题目 id 不能为空");
+
+        // 2) 批量删除
+        for (Long questionId : questionIds) {
+            boolean success = this.removeById(questionId);
+            if (!success) throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除题目失败");
+
+            // 2.2) 从关联表查询出相关记录并且删除
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                    .eq(QuestionBankQuestion::getQuestionId, questionId);
+            success = questionBankQuestionService.remove(lambdaQueryWrapper);
+            if (!success) throw new BusinessException(ErrorCode.OPERATION_ERROR, "删除题目题库关联失败");
+        }
+    }
 
 }

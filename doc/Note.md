@@ -1,6 +1,6 @@
 # Learning Note
 
-## 1 后端初始能力
+## 1 后端基础能力
 
 ### 1.1 根据题库查询该题库对应的题目
 
@@ -54,7 +54,7 @@
 
 1. 决定要不要查题目就直接传一个 `boolean` 就可以，所以要另外封装一个 `DTO` 传递参数，一般来说都是一个接口对应于一个 `DTO` 传参，养成这种习惯；
 
-2. 另外要返回给前端的 `VO` 需要添加分页的题目列表字段 <font color = "blue">**[如何动态修改返回给前端的封装信息]**</font>；
+2. 另外要返回给前端的 `VO` 需要添加分页的题目列表字段 <font color = "">**[如何动态修改返回给前端的封装信息]**</font>；
 
 3. 实现对应接口，这边查询题目直接复用刚刚实现的 `questionService` 中的方法即可:
 
@@ -90,19 +90,93 @@
 
 
 
+
+
 ## 2 业务需求开发
 
 ### 2.1 用户签到统计
 
 **技术**: Redis `BitMap`
 
-**接口**: 1) 添加签到记录，2) 查询签到记录
+**需求**: 
 
+​	1) 添加签到记录；
 
+​	2) 查询签到记录；
 
 
 
 ### 2.2 分词题目搜索
 
+**技术**: ES
+
+**需求**: 
+
+​	1) 全量及增量同步数据库数据到 ES；
+
+​	2) 根据题目，内容，答案可以灵活检索到相关题目；
 
 
+
+### 2.3 批量向题库添加/移除题目及批量删除题目
+
+**迭代**:
+
+1) 第一版简单地批量查询与删除，要记得使用 `@Transactional`，这是 Spring 帮助我们管理数据库事务，方法中任何一个数据库操作失败，Spring 都会通过代理回滚操作；
+
+```java
+@Override
+@Transactional(rollbackFor = Exception.class)
+public void batchAddQuestions2Bank(List<Long> questionIds, Long bankId, User loginUser) {
+    // 1) 参数校验
+    // 1.1) 校验参数非空
+    ThrowUtils.throwIf(CollUtil.isEmpty(questionIds), ErrorCode.PARAMS_ERROR, "题目 id 不能为空");
+    ThrowUtils.throwIf(bankId == null || bankId <= 0, ErrorCode.PARAMS_ERROR, "题库 id 不能为空");
+    ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
+
+    // 1.2) 校验题目 id 合法
+    List<Question> questionList = questionService.listByIds(questionIds);
+    List<Long> validQuestionsList = questionList.stream()
+        .map(Question::getId)
+        .collect(Collectors.toList());
+    ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionsList), ErrorCode.PARAMS_ERROR, "题目不存在");
+
+    // 1.3) 校验题库 id 合法
+    QuestionBank questionBank = questionBankService.getById(bankId);
+    ThrowUtils.throwIf(questionBank == null, ErrorCode.PARAMS_ERROR, "题库不存在");
+
+
+    // 2) 批量添加题目到题库
+    for (Long questionId : validQuestionsList) {
+        QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
+        questionBankQuestion.setQuestionBankId(bankId);
+        questionBankQuestion.setQuestionId(questionId);
+        questionBankQuestion.setUserId(loginUser.getId());
+        boolean success = this.save(questionBankQuestion);
+
+        if (!success) throw new BusinessException(ErrorCode.OPERATION_ERROR, "添加题目到题库失败");
+    }
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+## 3 业务自行优化
+
+### 3.1 定时任务唯一执行
+
+**技术**: 自定义注解 + AOP
+
+**需求**: 
+
+​	1) ES 数据同步分布式环境下只需要一台机器执行，使用分布式锁保证唯一性；
+
+​	2) 通过自定义注解 + AOP 快捷为方法添加分布式锁；

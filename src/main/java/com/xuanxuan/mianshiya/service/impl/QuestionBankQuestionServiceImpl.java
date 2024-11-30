@@ -1,25 +1,33 @@
 package com.xuanxuan.mianshiya.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.xuanxuan.mianshiya.common.ErrorCode;
 import com.xuanxuan.mianshiya.constant.CommonConstant;
+import com.xuanxuan.mianshiya.exception.BusinessException;
 import com.xuanxuan.mianshiya.exception.ThrowUtils;
 import com.xuanxuan.mianshiya.mapper.QuestionBankQuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.questionBankQuestion.QuestionBankQuestionQueryRequest;
+import com.xuanxuan.mianshiya.model.entity.Question;
+import com.xuanxuan.mianshiya.model.entity.QuestionBank;
 import com.xuanxuan.mianshiya.model.entity.QuestionBankQuestion;
 import com.xuanxuan.mianshiya.model.entity.User;
 import com.xuanxuan.mianshiya.model.vo.QuestionBankQuestionVO;
 import com.xuanxuan.mianshiya.model.vo.UserVO;
 import com.xuanxuan.mianshiya.service.QuestionBankQuestionService;
+import com.xuanxuan.mianshiya.service.QuestionBankService;
+import com.xuanxuan.mianshiya.service.QuestionService;
 import com.xuanxuan.mianshiya.service.UserService;
 import com.xuanxuan.mianshiya.utils.SqlUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -41,6 +49,12 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
 
     @Resource
     private UserService userService;
+
+    @Resource
+    private QuestionService questionService;
+
+    @Resource
+    private QuestionBankService questionBankService;
 
     /**
      * 校验数据
@@ -167,6 +181,69 @@ public class QuestionBankQuestionServiceImpl extends ServiceImpl<QuestionBankQue
 
         questionBankQuestionVOPage.setRecords(questionBankQuestionVOList);
         return questionBankQuestionVOPage;
+    }
+
+    /**
+     * 批量向题库添加题目
+     *
+     * @param questionIds
+     * @param bankId
+     * @param loginUser
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchAddQuestions2Bank(List<Long> questionIds, Long bankId, User loginUser) {
+        // 1) 参数校验
+        // 1.1) 校验参数非空
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIds), ErrorCode.PARAMS_ERROR, "题目 id 不能为空");
+        ThrowUtils.throwIf(bankId == null || bankId <= 0, ErrorCode.PARAMS_ERROR, "题库 id 不能为空");
+        ThrowUtils.throwIf(loginUser == null, ErrorCode.NOT_LOGIN_ERROR);
+
+        // 1.2) 校验题目 id 合法
+        List<Question> questionList = questionService.listByIds(questionIds);
+        List<Long> validQuestionsList = questionList.stream()
+                .map(Question::getId)
+                .collect(Collectors.toList());
+        ThrowUtils.throwIf(CollUtil.isEmpty(validQuestionsList), ErrorCode.PARAMS_ERROR, "题目不存在");
+
+        // 1.3) 校验题库 id 合法
+        QuestionBank questionBank = questionBankService.getById(bankId);
+        ThrowUtils.throwIf(questionBank == null, ErrorCode.PARAMS_ERROR, "题库不存在");
+
+
+        // 2) 批量添加题目到题库
+        for (Long questionId : validQuestionsList) {
+            QuestionBankQuestion questionBankQuestion = new QuestionBankQuestion();
+            questionBankQuestion.setQuestionBankId(bankId);
+            questionBankQuestion.setQuestionId(questionId);
+            questionBankQuestion.setUserId(loginUser.getId());
+            boolean success = this.save(questionBankQuestion);
+
+            if (!success) throw new BusinessException(ErrorCode.OPERATION_ERROR, "添加题目到题库失败");
+        }
+    }
+
+    /**
+     * 批量向题库删除题目
+     *
+     * @param questionIds
+     * @param bankId
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void batchRemoveQuestionsFromBank(List<Long> questionIds, Long bankId) {
+        // 1) 参数校验
+        ThrowUtils.throwIf(CollUtil.isEmpty(questionIds), ErrorCode.PARAMS_ERROR, "题目 id 不能为空");
+        ThrowUtils.throwIf(bankId == null || bankId <= 0, ErrorCode.PARAMS_ERROR, "题库 id 不能为空");
+
+        // 2) 批量添加题目到题库
+        for (Long questionId : questionIds) {
+            LambdaQueryWrapper<QuestionBankQuestion> lambdaQueryWrapper = Wrappers.lambdaQuery(QuestionBankQuestion.class)
+                    .eq(QuestionBankQuestion::getQuestionId, questionId)
+                    .eq(QuestionBankQuestion::getQuestionBankId, bankId);
+            boolean success = this.remove(lambdaQueryWrapper);
+            if (!success) throw new BusinessException(ErrorCode.OPERATION_ERROR, "从题库删除题目失败");
+        }
     }
 
 }

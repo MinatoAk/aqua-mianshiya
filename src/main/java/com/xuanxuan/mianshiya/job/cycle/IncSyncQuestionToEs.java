@@ -2,8 +2,11 @@ package com.xuanxuan.mianshiya.job.cycle;
 
 import cn.hutool.core.collection.CollUtil;
 import com.xuanxuan.mianshiya.annotation.DistributedLock;
+import com.xuanxuan.mianshiya.common.ErrorCode;
 import com.xuanxuan.mianshiya.constant.RedisConstant;
 import com.xuanxuan.mianshiya.esdao.QuestionEsDao;
+import com.xuanxuan.mianshiya.exception.BusinessException;
+import com.xuanxuan.mianshiya.manager.ESManager;
 import com.xuanxuan.mianshiya.mapper.QuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionEsDTO;
 import com.xuanxuan.mianshiya.model.entity.Question;
@@ -33,12 +36,21 @@ public class IncSyncQuestionToEs {
     @Resource
     private QuestionEsDao questionEsDao;
 
+    @Resource
+    private ESManager esManager;
+
     /**
      * 每分钟执行一次
      */
     @Scheduled(fixedRate = 60 * 1000)
     @DistributedLock(key = RedisConstant.INC_SYNC_QUESTION_TO_ES)
     public void run() {
+        // 0) 如果 ES 为连接则不同步
+        if (!esManager.checkElasticsearch()) {
+            log.error("ElasticSearch 尚未连接!");
+            throw new BusinessException(ErrorCode.SYSTEM_ERROR, "ES 尚未连接，无法增量同步");
+        }
+
         // 1) 查询近 5 分钟内的数据
         Date fiveMinutesAgoDate = new Date(new Date().getTime() - 5 * 60 * 1000L);
         List<Question> questionList = questionMapper.listUpdatedQuestion(fiveMinutesAgoDate);

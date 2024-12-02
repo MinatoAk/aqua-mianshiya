@@ -14,6 +14,7 @@ import com.xuanxuan.mianshiya.constant.CommonConstant;
 import com.xuanxuan.mianshiya.constant.UserConstant;
 import com.xuanxuan.mianshiya.exception.BusinessException;
 import com.xuanxuan.mianshiya.exception.ThrowUtils;
+import com.xuanxuan.mianshiya.manager.ESManager;
 import com.xuanxuan.mianshiya.mapper.QuestionMapper;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionEsDTO;
 import com.xuanxuan.mianshiya.model.dto.question.QuestionQueryRequest;
@@ -68,6 +69,9 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Resource
     private ElasticsearchRestTemplate elasticsearchRestTemplate;
+
+    @Resource
+    private ESManager esManager;
 
     /**
      * 校验数据
@@ -246,6 +250,12 @@ public class QuestionServiceImpl extends ServiceImpl<QuestionMapper, Question> i
 
     @Override
     public Page<Question> searchQuestionFromES(QuestionQueryRequest questionQueryRequest) {
+        // ex 1) 先检查是否 ES 成功连接，如果未连接则直接查询数据库
+        if (!esManager.checkElasticsearch()) {
+           log.error("ElasticSearch 尚未连接!");
+           return listQuestionByPage(questionQueryRequest);
+        }
+
         // 0) 获取参数
         Long id = questionQueryRequest.getId();
         Long notId = questionQueryRequest.getNotId();

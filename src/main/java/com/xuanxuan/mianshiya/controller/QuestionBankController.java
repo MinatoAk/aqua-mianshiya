@@ -2,6 +2,7 @@ package com.xuanxuan.mianshiya.controller;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
 import com.xuanxuan.mianshiya.annotation.AuthCheck;
 import com.xuanxuan.mianshiya.common.BaseResponse;
 import com.xuanxuan.mianshiya.common.DeleteRequest;
@@ -138,7 +139,7 @@ public class QuestionBankController {
     }
 
     /**
-     * 根据 id 获取题库（封装类）
+     * 根据 id 获取题库详情（封装类）
      *
      * @param questionBankQueryRequest
      * @return
@@ -150,19 +151,34 @@ public class QuestionBankController {
         boolean needQueryQuestionList = questionBankQueryRequest.isNeedQueryQuestionList();
         ThrowUtils.throwIf(id <= 0, ErrorCode.PARAMS_ERROR);
 
-        // 查询数据库
+        // 1) 先看是否要走缓存
+        // 1.1) 生成题库对应的 key
+        String key = "bank_detail_" + id;
+
+        // 1.2) 判断是否为热 key 并且上报
+        if (JdHotKeyStore.isHotKey(key)) {
+            Object cachedBankVO = JdHotKeyStore.get(key);
+            if (cachedBankVO != null) {
+                return ResultUtils.success((QuestionBankVO) cachedBankVO);
+            }
+        }
+
+        // 2) 查询数据库
         QuestionBank questionBank = questionBankService.getById(id);
         ThrowUtils.throwIf(questionBank == null, ErrorCode.NOT_FOUND_ERROR);
 
         QuestionBankVO questionBankVO = questionBankService.getQuestionBankVO(questionBank, request);
 
-        // 如果需要查询题库列表
+        // 3) 如果需要查询题库列表
         if (needQueryQuestionList) {
             QuestionQueryRequest questionQueryRequest = new QuestionQueryRequest();
             questionQueryRequest.setQuestionBankId(id);
             Page<Question> questionPage = questionService.listQuestionByPage(questionQueryRequest);
             questionBankVO.setQuestionPage(questionPage);
         }
+
+        // 1.3) 设置本地缓存，而且是智能设置
+        JdHotKeyStore.smartSet(key, questionBankVO);
 
         // 获取封装类
         return ResultUtils.success(questionBankVO);

@@ -1,5 +1,8 @@
 package com.xuanxuan.mianshiya.controller;
 
+import com.alibaba.csp.sentinel.annotation.SentinelResource;
+import com.alibaba.csp.sentinel.slots.block.BlockException;
+import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jd.platform.hotkey.client.callback.JdHotKeyStore;
@@ -209,6 +212,11 @@ public class QuestionBankController {
      * @return
      */
     @PostMapping("/list/page/vo")
+    @SentinelResource(
+            value = "listQuestionBankVOByPage",
+            blockHandler = "handleBlockException",
+            fallback = "handleFallback"
+    )
     public BaseResponse<Page<QuestionBankVO>> listQuestionBankVOByPage(@RequestBody QuestionBankQueryRequest questionBankQueryRequest,
                                                                HttpServletRequest request) {
         long current = questionBankQueryRequest.getCurrent();
@@ -221,6 +229,41 @@ public class QuestionBankController {
         // 获取封装类
         return ResultUtils.success(questionBankService.getQuestionBankVOPage(questionBankPage, request));
     }
+
+    /**
+     *  1) 限流触发 2) 熔断后的降级触发
+     *  可以理解为该方法处理一切 Sentinel 自己的异常
+     *  如果没有配置该方法，则会找 Fallback 的方法
+     *
+     *  规则:
+     *  返回类型和原方法匹配，参数也匹配，而且多加一个 BlockException
+     *  该方法需要和原方法在同一个类中
+     *  或额外定义一个类实现静态 static 方法，并且在注解中添加 blockHandlerClass = {xxx.class} 指定 class 对象
+     */
+    public BaseResponse<Page<QuestionBankVO>> handleBlockException(@RequestBody QuestionBankQueryRequest questionBankQueryRequest,
+                                                               HttpServletRequest request, BlockException ex) {
+        // 熔断之后的降级
+        if (ex instanceof DegradeException) {
+            // System.out.println("---------------------熔断之后的降级------------");
+            return handleFallback(questionBankQueryRequest, request, ex);
+        }
+
+        // 限流操作
+        return ResultUtils.error(ErrorCode.SYSTEM_ERROR, "系统压力过大，请耐心等待");
+    }
+
+    /**
+     *  业务异常抛出的降级操作，比如数据库异常
+     *  不会处理限流抛出的 BlockException
+     *
+     *  编写规则同 handleBlockException 方法
+     */
+    public BaseResponse<Page<QuestionBankVO>> handleFallback(@RequestBody QuestionBankQueryRequest questionBankQueryRequest,
+                                                               HttpServletRequest request, Throwable ex) {
+        // 返回本地数据或者空数据
+        return ResultUtils.success(null);
+    }
+
 
     /**
      * 分页获取当前登录用户创建的题库列表

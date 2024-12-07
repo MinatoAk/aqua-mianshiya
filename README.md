@@ -118,4 +118,4 @@
 
 ### 3.1 Sentinel 限流降级熔断
 
-<img src=".\imgs\Sentinel限流降级熔断.jpg" alt="Sentinel限流降级熔断说明" style="zoom: 67%;" />
+<img src=".\imgs\Sentinel.jpg" alt="Sentinel限流降级熔断说明" style="zoom: 67%;" />
